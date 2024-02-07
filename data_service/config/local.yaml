@@ -1,0 +1,5 @@
+env: "local"
+storage_path: "./storage/library.db"
+grpc:
+  port: 50051
+  timeout: 1h

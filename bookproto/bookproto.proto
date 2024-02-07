@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+option go_package = "github.com/pavlechko/library/bookproto";
+
+// package bookproto;
+
+service BookService {
+    rpc GetBookByAuthorAndTitle(BookRequest) returns (BookResponse);
+}
+
+message BookRequest {
+    string author = 1;
+    string title = 2;
+}
+
+message BookResponse {
+    Book book = 1;
+}
+
+message Book {
+    string title = 1;
+    string author = 2;
+    string country = 3;
+}

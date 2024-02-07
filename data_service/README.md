@@ -1,0 +1,1 @@
+go run cmd/data_service/main.go --config=./config/local.yaml
