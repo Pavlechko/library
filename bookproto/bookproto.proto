@@ -2,7 +2,7 @@ syntax = "proto3";
 
 option go_package = "github.com/pavlechko/library/bookproto";
 
-// package bookproto;
+package bookproto;
 
 service BookService {
     rpc GetBookByAuthorAndTitle(BookRequest) returns (BookResponse);
