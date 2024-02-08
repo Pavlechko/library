@@ -2,12 +2,10 @@ package main
 
 import (
 	"fmt"
-	"os"
-	"os/signal"
-	"syscall"
 
 	"github.com/pavlechko/library/data_service/internal/app"
 	"github.com/pavlechko/library/data_service/internal/config"
+	"github.com/pavlechko/library/data_service/internal/utils"
 )
 
 func main() {
@@ -16,18 +14,13 @@ func main() {
 	if err != nil {
 		fmt.Println(err)
 	}
-
+	utils.InfoLogger.Println(cfg)
 	fmt.Println(cfg)
 
 	application := app.NewGRPCServer(cfg.GRPC.Port)
-	go application.Server.ListenAndServe()
+	utils.InfoLogger.Println("application: ", application)
 
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, syscall.SIGTERM, syscall.SIGINT)
+	application.Server.ListenAndServe()
 
-	sign := <-stop
-
-	application.Server.Close()
-
-	fmt.Println("Application was stopped. Signal: ", sign)
+	defer application.Server.Close()
 }

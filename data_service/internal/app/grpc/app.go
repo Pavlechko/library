@@ -5,6 +5,7 @@ import (
 	"net"
 
 	grpcservice "github.com/pavlechko/library/data_service/internal/grpc"
+	"github.com/pavlechko/library/data_service/internal/utils"
 	"google.golang.org/grpc"
 )
 
@@ -13,24 +14,27 @@ type App struct {
 	server *grpc.Server
 }
 
-func NewGRPCServer(port uint) *App {
-	grpcServer := grpc.NewServer()
+func NewGRPCServer(port uint, bookService grpcservice.IBook) *App {
+	server := grpc.NewServer()
 
-	grpcservice.Register(grpcServer)
+	grpcservice.Register(server, bookService)
 
 	return &App{
 		port:   port,
-		server: grpcServer,
+		server: server,
 	}
 }
 
 func (a *App) ListenAndServe() error {
+	utils.InfoLogger.Println("ListenAndServe")
+
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", a.port))
 	if err != nil {
+		utils.ErrorLogger.Println("Error: %w", err)
 		return fmt.Errorf("Error: %w", err)
 	}
 
-	fmt.Println("grpc server is running", lis.Addr().String())
+	utils.InfoLogger.Println("grpc server is running", lis.Addr().String())
 
 	if err := a.server.Serve(lis); err != nil {
 		return fmt.Errorf("Error: %w", err)
