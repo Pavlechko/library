@@ -4,12 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/gorilla/mux"
 	"github.com/pavlechko/library/auth_service/internal/grpc"
 	"github.com/pavlechko/library/auth_service/internal/models"
 	pb "github.com/pavlechko/library/bookproto"
+	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 type APIClient struct {
@@ -21,6 +23,11 @@ func NewAPIClient(port string, service grpc.GrpcClient) *APIClient {
 	return &APIClient{
 		listenPort: port,
 		service:    service,
+	}
+}
+func failOnError(err error, msg string) {
+	if err != nil {
+		log.Panicf("%s: %s", msg, err)
 	}
 }
 
@@ -36,7 +43,60 @@ func (c *APIClient) Run(ctx context.Context) {
 			return
 		}
 
-		res, err := c.service.GetBookByAuthorAndTitle(ctx, &pb.BookRequest{Author: book.Author, Title: book.Title})
+		conn, err := amqp.Dial("amqp://guest:guest@localhost:5672/")
+		failOnError(err, "Failed to connect to RabbitMQ")
+		defer conn.Close()
+
+		ch, err := conn.Channel()
+		failOnError(err, "Failed to open a channel")
+		defer ch.Close()
+
+		q, err := ch.QueueDeclare(
+			"author",
+			false,
+			false,
+			false,
+			false,
+			nil,
+		)
+		failOnError(err, "Failed to declare a queue")
+
+		body := book.Author
+
+		err = ch.PublishWithContext(ctx,
+			"",
+			q.Name,
+			false,
+			false,
+			amqp.Publishing{
+				ContentType: "text/plain",
+				Body:        []byte(body),
+			},
+		)
+
+		failOnError(err, "Failed to publish a message")
+		log.Printf(" [x] Sent %s\n", body)
+
+		msgs, err := ch.Consume(
+			q.Name,
+			"",
+			true,
+			false,
+			false,
+			false,
+			nil,
+		)
+		failOnError(err, "Failed to register a consumer")
+
+		aut := make(chan string)
+
+		go func() {
+			for d := range msgs {
+				aut <- string(d.Body)
+			}
+
+		}()
+		res, err := c.service.GetBookByAuthorAndTitle(ctx, &pb.BookRequest{Author: <-aut, Title: book.Title})
 		if err != nil {
 			http.Error(w, "Error Respons from gRPC", http.StatusBadRequest)
 			return
